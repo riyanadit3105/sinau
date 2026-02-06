@@ -1,0 +1,74 @@
+[
+  {
+    "id": "bab-1",
+    "title": "Bilangan sampai 10",
+    "description": "Numbers to 10",
+    "themeColor": "bg-emerald-500",
+    "levels": [
+      { 
+        "id": "1-1", 
+        "title": "Menghitung kumpulan benda", 
+        "status": "locked",
+        "xp": 100
+      },
+      { 
+        "id": "1-2", 
+        "title": "Membaca dan menulis angka sampai 10", 
+        "status": "locked",
+        "xp": 100
+      },
+      { 
+        "id": "1-3", 
+        "title": "Membandingkan bilangan", 
+        "status": "locked",
+        "xp": 125
+      },
+      { 
+        "id": "1-4", 
+        "title": "Kata bilangan (Satu, Dua...)", 
+        "status": "locked",
+        "xp": 125
+      },
+      { 
+        "id": "1-5", 
+        "title": "Bilangan ganjil dan genap", 
+        "status": "locked",
+        "xp": 150
+      }
+    ]
+  },
+  {
+    "id": "bab-2",
+    "title": "Geometri",
+    "description": "Geometry",
+    "themeColor": "bg-blue-500",
+    "levels": [
+      { 
+        "id": "2-1", 
+        "title": "Bangun ruang (3D)", 
+        "status": "locked",
+        "xp": 150
+      },
+      { 
+        "id": "2-2", 
+        "title": "Bangun datar (2D)", 
+        "status": "locked",
+        "xp": 150
+      }
+    ]
+  },
+  {
+    "id": "bab-3",
+    "title": "Pecahan",
+    "description": "Fractions",
+    "themeColor": "bg-indigo-600",
+    "levels": [
+      { 
+        "id": "3-1", 
+        "title": "Pecahan Dasar", 
+        "status": "locked",
+        "xp": 200
+      }
+    ]
+  }
+]
