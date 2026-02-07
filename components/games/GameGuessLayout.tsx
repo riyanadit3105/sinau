@@ -187,12 +187,9 @@ useEffect(() => {
                                <Button onClick={generateProblem} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-12 rounded-xl font-bold">
                                   Lanjut <RefreshCcw size={16} className="ml-2"/>
                                </Button>
-                               
-                               {userRole === 'student' && (
-                                   <Button onClick={onComplete} variant="outline" className="flex-1 border-slate-200 text-slate-600 h-12 rounded-xl font-bold">
+                               <Button onClick={onComplete} variant="outline" className="flex-1 border-slate-200 text-slate-600 h-12 rounded-xl font-bold">
                                        Selesai
-                                   </Button>
-                               )}
+                               </Button>
                            </div>
                         </motion.div>
                     )}
