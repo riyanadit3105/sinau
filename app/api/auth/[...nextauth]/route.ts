@@ -4,28 +4,38 @@ import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
-// 1. Path ke database JSON
+// 1. Tentukan Path yang Aman
 const filePath = path.join(process.cwd(), "data", "users.json");
 
-// 2. Helper: Cari user berdasarkan EMAIL (READ ONLY - Aman di Vercel)
+// 2. Helper: Baca User (Safe Mode)
 const getUserByEmail = (email: string) => {
-  if (!fs.existsSync(filePath)) return null;
-  
   try {
+    // Cek apakah file ada
+    if (!fs.existsSync(filePath)) {
+      console.error(`🚨 File tidak ditemukan di: ${filePath}`);
+      return null;
+    }
+    
     const jsonData = fs.readFileSync(filePath, 'utf8');
     const users = JSON.parse(jsonData);
+    
     return users.find((u: any) => u.email === email);
   } catch (error) {
-    console.error("Error reading users.json:", error);
+    console.error("🚨 Error saat membaca JSON:", error);
     return null;
   }
 };
 
-// 3. Helper: Update Session Version (WRITE - Hanya untuk Localhost)
+// 3. Helper: Tulis User (HANYA JALAN DI LOCALHOST)
 const updateUserSession = (userId: string, newVersion: string) => {
-  if (!fs.existsSync(filePath)) return;
+  // PENTING: Jangan jalankan ini di Production (Vercel)
+  if (process.env.NODE_ENV === 'production') {
+      console.log("⚠️ Skipping file write on Vercel (Read-Only)");
+      return;
+  }
 
   try {
+    if (!fs.existsSync(filePath)) return;
     const jsonData = fs.readFileSync(filePath, 'utf8');
     const users = JSON.parse(jsonData);
     
@@ -38,11 +48,10 @@ const updateUserSession = (userId: string, newVersion: string) => {
 
     fs.writeFileSync(filePath, JSON.stringify(updatedUsers, null, 2));
   } catch (error) {
-    console.error("Gagal update session ke JSON:", error);
+    console.error("Gagal update JSON:", error);
   }
 };
 
-// 4. Konfigurasi Auth Utama
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -54,117 +63,70 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
 
-        console.log("🔍 Login Attempt:", credentials.username);
+        console.log(`🔍 Login attempt: ${credentials.username} at path: ${filePath}`);
 
-        // A. Cari User
+        // A. Cari User dari File JSON
         const user = getUserByEmail(credentials.username);
 
         if (!user) {
-          console.log("❌ Email tidak ditemukan.");
+          console.log("❌ User tidak ditemukan di JSON");
           return null;
         }
 
         // B. Cek Password
         if (user.password === credentials.password) {
-          console.log("✅ Password Cocok!");
+          console.log("✅ Password Cocok");
 
           const newSessionVersion = uuidv4();
+          
+          // C. Update Session (Hanya update file jika di Localhost)
+          updateUserSession(user.id, newSessionVersion);
 
-          // --- LOGIC KHUSUS VERCEL ---
-          // Vercel File System itu Read-Only. Kita tidak bisa fs.writeFileSync di sana.
-          // Jadi, kita hanya update JSON jika di Localhost (Development).
-          if (process.env.NODE_ENV === 'development') {
-             updateUserSession(user.id, newSessionVersion);
-          } else {
-             console.log("⚠️ Production Mode: Skipping JSON write (Read-Only FS).");
-          }
-
-          // D. Return Data User ke JWT
+          // D. Return Data
           return { 
             id: user.id, 
-            name: user.username || user.nama || user.name || "Tanpa Nama", 
+            name: user.username || user.nama || user.name, 
             email: user.email,
             role: user.role,
-            schoolId: user.schoolId, // Pastikan ini terbawa
+            schoolId: user.schoolId,
+            // Di Vercel, kita pakai versi baru di memori saja, tidak disimpan ke file
             sessionVersion: newSessionVersion 
           };
-        } else {
-          console.log("❌ Password Salah.");
-          return null;
         }
+        
+        return null;
       }
     })
   ],
   
   callbacks: {
-    async jwt({ token, user, trigger }) {
-      // 1. Setup awal (Saat login berhasil)
-      if (trigger === 'signIn' && user) {
-        token.sessionVersion = (user as any).sessionVersion;
-        token.id = (user as any).id;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
         token.role = (user as any).role;
         token.name = user.name;
-        token.email = user.email;
-        token.schoolId = (user as any).schoolId; 
+        token.schoolId = (user as any).schoolId;
+        token.sessionVersion = (user as any).sessionVersion;
       }
-
-      // 2. Cek Validasi Session
-      if (token.email) {
-        // Kita perlu cek DB lagi untuk memastikan user belum dihapus
-        const dbUser = getUserByEmail(token.email as string);
-
-        if (!dbUser) {
-           return { ...token, error: "SessionExpired" };
-        }
-
-        // --- VALIDASI SINGLE DEVICE (Hanya di Development) ---
-        // Di Vercel, karena kita tidak bisa update JSON, dbUser.sessionVersion akan selalu LAMA.
-        // Sedangkan token.sessionVersion adalah BARU.
-        // Jika kita validasi di Vercel, pasti mismatch dan logout sendiri.
-        // Jadi, validasi ketat ini hanya kita nyalakan di Development.
-        if (process.env.NODE_ENV === 'development') {
-            if (dbUser.sessionVersion !== token.sessionVersion) {
-                return { ...token, error: "SessionExpired" };
-            }
-        }
-        
-        // Update data realtime (misal guru baru join sekolah)
-        // Ini aman dilakukan di prod karena cuma update token memori, bukan file
-        if (dbUser.schoolId) {
-            token.schoolId = dbUser.schoolId;
-        }
-      }
-
       return token;
     },
 
     async session({ session, token }) {
-      // Cek error session expired
-      if ((token as any).error === "SessionExpired") {
-        return { ...session, error: "SessionExpired", user: null } as any;
-      }
-
-      // Masukkan data ke session client
-      if (session.user && token.id) {
+      if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
-        (session.user as any).schoolId = token.schoolId; // Penting untuk Dashboard Guru
+        (session.user as any).schoolId = token.schoolId;
       }
-      
       return session;
     }
   },
 
-  pages: {
-    signIn: '/login',
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 1 Hari
-  },
+  pages: { signIn: '/login' },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: true, // Nyalakan ini untuk melihat log di Vercel Dashboard
 };
 
 const handler = NextAuth(authOptions);
