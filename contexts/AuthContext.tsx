@@ -1,21 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext } from "react";
 import { useRouter } from "next/navigation";
+import { signIn, signOut, useSession } from "next-auth/react";
 
-// --- 1. IMPORT DARI GLOBAL TYPES (JANGAN DEFINISI ULANG DI SINI) ---
+// --- 1. IMPORT DARI GLOBAL TYPES ---
 import { User } from "@/types"; 
-
-// --- 2. HAPUS BAGIAN INI (KARENA SUDAH DI-IMPORT) ---
-/* interface User {
-  id: string;
-  name?: string;
-  email: string;
-  role: "student" | "teacher" | "school";
-  schoolId?: string | null;
-  classId?: string | null;
-}
-*/
 
 interface AuthContextType {
   user: User | null;
@@ -27,82 +17,56 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Default loading TRUE
+  // --- 1. AMBIL DATA DARI NEXTAUTH (GANTINYA MANUAL COOKIE) ---
+  const { data: session, status } = useSession();
   const router = useRouter();
 
-  // --- 1. CEK COOKIE SAAT REFRESH ---
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        // Regex untuk mengambil cookie 'sinau_token' dengan presisi
-        const match = document.cookie.match(new RegExp('(^| )sinau_token=([^;]+)'));
-        
-        if (match) {
-          const tokenValue = match[2];
-          const userData = JSON.parse(decodeURIComponent(tokenValue));
-          
-          if (userData && userData.email) {
-            setUser(userData);
-          } else {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-      } catch (e) {
-        console.error("Gagal restore session:", e);
-        setUser(null);
-      } finally {
-        setIsLoading(false); // Selesai loading, apapun hasilnya
-      }
-    };
+  const isLoading = status === "loading";
 
-    checkAuth();
-  }, []);
+  // Konversi session.user ke tipe User aplikasi kamu
+  // Karena kita sudah set tipe di next-auth.d.ts, kita bisa casting aman
+  const user = session?.user ? (session.user as User) : null;
 
-  // --- 2. FUNGSI LOGIN ---
+  // --- 2. FUNGSI LOGIN (WRAPPER NEXTAUTH) ---
   const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn("credentials", {
+        redirect: false, 
+        username: email,
+        password: password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Login gagal");
-        setIsLoading(false);
+      if (result?.error) {
+        console.error("Login Gagal:", result.error);
         return false;
       }
 
-      // SIMPAN COOKIE YANG KUAT (Expire 1 Hari)
-      const userData = JSON.stringify(data.user);
-      document.cookie = `sinau_token=${encodeURIComponent(userData)}; path=/; max-age=86400; SameSite=Lax`;
+      // --- PERUBAHAN DI SINI ---
+      console.log("Login Sukses! Mengalihkan ke dashboard...");
       
-      setUser(data.user);
-      router.push("/dashboard"); // Redirect manual
+      // 1. Force Refresh data session
+      router.refresh(); 
+
+      // 2. Ganti router.push dengan ini:
+      // Ini memaksa browser memuat ulang halaman dashboard dari nol
+      window.location.href = "/dashboard"; 
+      
       return true;
 
     } catch (error) {
       console.error("Login Error:", error);
-      alert("Terjadi kesalahan koneksi");
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // --- 3. FUNGSI LOGOUT ---
-  const logout = () => {
-    // Hapus Cookie dengan set expired date ke masa lalu
-    document.cookie = "sinau_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    setUser(null);
+  // --- 3. FUNGSI LOGOUT (WRAPPER NEXTAUTH) ---
+  const logout = async () => {
+    // signOut akan otomatis hapus cookie & session
+    await signOut({ 
+      redirect: false, // Kita redirect manual agar lebih smooth
+      callbackUrl: "/login" 
+    });
     router.push("/login");
-    router.refresh(); // Refresh agar cache bersih
   };
 
   return (

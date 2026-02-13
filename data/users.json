@@ -18,7 +18,8 @@
     "plan": "trial",
     "maxClasses": 2,
     "maxStudentsPerClass": 36,
-    "subscriptionValidUntil": "2026-03-01T12:52:57.598Z"
+    "subscriptionValidUntil": "2026-03-01T12:52:57.598Z",
+    "sessionVersion": "065bd7c5-08ad-41a3-b656-f996f808e634"
   },
   {
     "id": "1769765231430",
@@ -32,7 +33,8 @@
     "classId": null,
     "xp": 0,
     "badges": [],
-    "completedLevels": []
+    "completedLevels": [],
+    "sessionVersion": "fdf9412b-58fd-44a9-b600-cd4e07570cfd"
   },
   {
     "id": "1769766812201",
@@ -44,10 +46,13 @@
     "password": "rahasia",
     "schoolId": "admin@gmail.com",
     "classId": "1769766529314",
-    "xp": 6,
+    "xp": 110,
     "badges": [],
     "className": "1",
-    "completedLevels": []
+    "completedLevels": [
+      "1-1"
+    ],
+    "sessionVersion": "05036da1-6d38-405c-a993-4392413d41a6"
   },
   {
     "id": "1769772438390",
@@ -273,7 +278,8 @@
     "plan": "monthly_9",
     "maxClasses": 9,
     "maxStudentsPerClass": 36,
-    "subscriptionValidUntil": "2026-03-06T13:41:28.046Z"
+    "subscriptionValidUntil": "2026-03-06T13:41:28.046Z",
+    "sessionVersion": "aaa18451-f3be-42eb-befa-69c74ebc182b"
   },
   {
     "id": "1770212526402",
@@ -300,13 +306,14 @@
     "password": "rahasia",
     "schoolId": "admin2@gmail.com",
     "classId": "1770212496435",
-    "xp": 569,
+    "xp": 585,
     "subscriptionStatus": "active",
     "maxStudents": null,
     "className": "6",
     "completedLevels": [
       "1-1"
-    ]
+    ],
+    "sessionVersion": "2d897263-2d74-4860-9b7f-98428a44dcb4"
   },
   {
     "id": "1770430437932",
@@ -320,7 +327,8 @@
     "classId": null,
     "xp": 0,
     "subscriptionStatus": "active",
-    "maxStudents": null
+    "maxStudents": null,
+    "sessionVersion": "9399580d-8ff2-4efe-aa70-c760689cb539"
   },
   {
     "id": "1770430463410",

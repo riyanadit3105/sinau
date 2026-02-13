@@ -64,7 +64,6 @@ export function StudentDashboard({ user }: { user: any }) {
         // 3. Panggil API dengan Grade yang sudah ditentukan
         const resChapters = await fetch(`/api/chapters?grade=${gradeToFetch}`, { cache: 'no-store' });
         const rawChapters = await resChapters.json();
-
         // 4. Proses Status Unlock (Konsep Lama)
         const unlockedIds = myClassData?.unlockedLevels || [];
         
