@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    outputFileTracingIncludes: {
+      '/api/**/*': ['./data/**/*'], // Paksa bawa folder data ke semua API
+    },
+  },
 };
 
 export default nextConfig;

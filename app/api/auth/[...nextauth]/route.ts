@@ -4,36 +4,30 @@ import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
-// 1. Tentukan Path yang Aman
+// 1. Path ke database JSON
 const filePath = path.join(process.cwd(), "data", "users.json");
 
-// 2. Helper: Baca User (Safe Mode)
+// 2. Helper: Baca User
 const getUserByEmail = (email: string) => {
   try {
-    // Cek apakah file ada
-    if (!fs.existsSync(filePath)) {
-      console.error(`🚨 File tidak ditemukan di: ${filePath}`);
-      return null;
-    }
-    
+    if (!fs.existsSync(filePath)) return null;
     const jsonData = fs.readFileSync(filePath, 'utf8');
     const users = JSON.parse(jsonData);
-    
     return users.find((u: any) => u.email === email);
   } catch (error) {
-    console.error("🚨 Error saat membaca JSON:", error);
     return null;
   }
 };
 
-// 3. Helper: Tulis User (HANYA JALAN DI LOCALHOST)
+// 3. Helper: Update Session (KITA MATIKAN DI VERCEL)
 const updateUserSession = (userId: string, newVersion: string) => {
-  // PENTING: Jangan jalankan ini di Production (Vercel)
+  // PENTING: Jika di Production (Vercel), JANGAN update file.
+  // Karena Vercel itu Read-Only, kalau dipaksa tulis malah error/tidak kesimpan.
   if (process.env.NODE_ENV === 'production') {
-      console.log("⚠️ Skipping file write on Vercel (Read-Only)");
-      return;
+      return; 
   }
 
+  // Hanya jalan di Localhost
   try {
     if (!fs.existsSync(filePath)) return;
     const jsonData = fs.readFileSync(filePath, 'utf8');
@@ -63,37 +57,25 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
 
-        console.log(`🔍 Login attempt: ${credentials.username} at path: ${filePath}`);
-
-        // A. Cari User dari File JSON
         const user = getUserByEmail(credentials.username);
+        if (!user) return null;
 
-        if (!user) {
-          console.log("❌ User tidak ditemukan di JSON");
-          return null;
-        }
-
-        // B. Cek Password
         if (user.password === credentials.password) {
-          console.log("✅ Password Cocok");
-
+          // Buat session version baru
           const newSessionVersion = uuidv4();
           
-          // C. Update Session (Hanya update file jika di Localhost)
+          // Coba update file (Akan di-skip otomatis kalau di Vercel)
           updateUserSession(user.id, newSessionVersion);
 
-          // D. Return Data
           return { 
             id: user.id, 
             name: user.username || user.nama || user.name, 
             email: user.email,
             role: user.role,
             schoolId: user.schoolId,
-            // Di Vercel, kita pakai versi baru di memori saja, tidak disimpan ke file
             sessionVersion: newSessionVersion 
           };
         }
-        
         return null;
       }
     })
@@ -108,10 +90,31 @@ export const authOptions: NextAuthOptions = {
         token.schoolId = (user as any).schoolId;
         token.sessionVersion = (user as any).sessionVersion;
       }
+
+      // --- BAGIAN INI YANG BIKIN ERROR ---
+      // Kita MATIKAN validasi ketat ini di Production.
+      // Di Vercel, karena file JSON gak berubah, token pasti beda sama DB.
+      // Jadi kita ijinkan saja (bypass) kalau di production.
+      
+      if (process.env.NODE_ENV === 'development') {
+          // Hanya cek single device di localhost
+          if (token.email) {
+             const dbUser = getUserByEmail(token.email as string);
+             if (dbUser && dbUser.sessionVersion !== token.sessionVersion) {
+                 return { ...token, error: "SessionExpired" };
+             }
+          }
+      }
+
       return token;
     },
 
     async session({ session, token }) {
+      // Cek error session
+      if ((token as any).error === "SessionExpired") {
+        return { ...session, error: "SessionExpired", user: null } as any;
+      }
+
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
@@ -122,11 +125,10 @@ export const authOptions: NextAuthOptions = {
       return session;
     }
   },
-
+  
   pages: { signIn: '/login' },
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: true, // Nyalakan ini untuk melihat log di Vercel Dashboard
 };
 
 const handler = NextAuth(authOptions);
